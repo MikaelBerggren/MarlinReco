@@ -1,4 +1,5 @@
-##TrueJet_Parser:##
+
+## TrueJet_Parser:
 
 class to help to interpret the collections created by `TrueJet`.
  
