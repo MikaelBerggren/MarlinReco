@@ -145,12 +145,22 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
     streamlog_out(MESSAGE) << " ==================================================== " << std::endl ;
     streamlog_out(MESSAGE) << std::endl ;
 
+    LCCollection* rmclcol = NULL;
+    try{
+        rmclcol = evt->getCollection( _recoMCTruthLink );
+    }
+    catch( lcio::DataNotAvailableException e )
+    {
+        rmclcol = NULL;
+    }
     // tj is a pointer to a Trujet_Parser, with the data of this processor object:
     TrueJet_Parser* tj= this ;
     // this method gets all the collections needed + initialises a few convienent variables.
     tj->getall(evt);
+    if ( tjcol == NULL ) { return ; }
 
     streamlog_out(DEBUG5) << " Number of jets is " << tj->njets() << endl;
+    if ( tj->njets() == 0 ) { return ; }
     int njets=tj->njets();
     IntVec sibl[50] ;   // This will be used to store siblings of each jet
     double total_Etrue=0;
@@ -158,12 +168,14 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
     double total_Eowl=0;
     int leptons=0;
 
-     
+    bool cluster_in_event = false;  
+    bool gluonsplit_in_event = false;  
     for (int ijet=0 ; ijet< njets; ijet++ ) { // start jet loop
 
          // enery, moemtum, type of the jets. Choose between true, seen or true-of-seen values
-         // type: 1 string, 2 lepton, 3 cluster, 4 ISR, 5 overlay.
-
+         // type: 1 string, 2 lepton, 3 cluster, 4 ISR, 5 overlay, 6 ME photon.
+      if ( abs(type_jet(ijet)%100) == 3 ) { cluster_in_event = true; }
+      if ( abs(type_jet(ijet)) > 100 ) { gluonsplit_in_event = true; }
       streamlog_out(DEBUG5)<<endl;
       streamlog_out(DEBUG5)<< " jet " << ijet << " has type " << type_jet(ijet) << endl;
       streamlog_out(DEBUG5)<< " Seen :         " << Eseen(ijet) ; 
@@ -178,12 +190,14 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
       streamlog_out(DEBUG4)<< "               ";
            for (int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG4) << " " << p4true(ijet)[jj] ;}   ;
            streamlog_out(DEBUG4)<< endl;
+      if ( rmclcol != NULL ) {
       streamlog_out(DEBUG5)<< " True of seen : " << Etrueseen(ijet) ; 
            for (int jj=0 ; jj<3 ; jj++ ) { streamlog_out(DEBUG5) << " " << ptrueseen(ijet)[jj] ;} ; 
            streamlog_out(DEBUG5) << " "  << Mtrueseen(ijet) << endl;
       streamlog_out(DEBUG4)<< "               ";
            for (int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG4) << " " << p4trueseen(ijet)[jj] ;}  ; 
            streamlog_out(DEBUG4)<< endl;
+      }   
       streamlog_out(DEBUG5)<< " elementon :    " << Equark(ijet) ; 
            for (int jj=0 ; jj<3 ; jj++ ) { streamlog_out(DEBUG5) << " " << pquark(ijet)[jj] ;} ; 
            streamlog_out(DEBUG5) << " "  << Mquark(ijet) << endl;
@@ -193,7 +207,7 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
       streamlog_out(DEBUG5) << endl;
 
       // make some global sums:
-      if ( abs(type_jet(ijet))%100 < 4 ) {
+      if ( abs(type_jet(ijet))%100 < 4 || abs(type_jet(ijet))%100 == 6 ) {
         total_Etrue+=  Etrue(ijet);
         if (  abs(type_jet(ijet))%100 == 2 ){
           leptons++;
@@ -201,7 +215,7 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
       } else if  ( abs(type_jet(ijet))%100 == 4 ) {
         total_Eisr+=Etrue(ijet);
       } else if  ( abs(type_jet(ijet))%100 == 5 ) {
-        total_Eowl+= Etrueseen(ijet);
+        if ( rmclcol != NULL ) {total_Eowl+= Etrueseen(ijet);}
       }
 
       // get reco particles of the jet, as a ReconstructedParticleVec.
@@ -223,8 +237,8 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
       // make a copy. final_siblings clears the vector at each call. Note syntax. aibl is IntVec sibl[50].
 
       sibl[ijet]=final_siblings(ijet );
+ 
 
-  
       // print from sibl
       streamlog_out(DEBUG3) << " Number final Siblings to this jet :" << sibl[ijet].size() << endl;
       if (  sibl[ijet].size() > 0 ) {
@@ -268,6 +282,11 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
       }
     }
 
+    double total_Ecn=0;
+    int _nicn=nicn();
+    for (int iicn=0 ; iicn< _nicn; iicn++ ) { 
+      total_Ecn+=E_icn(iicn);
+    }
     // 
     streamlog_out(DEBUG5) << " Number of final colour-neutrals is " << nfcn()<< endl;
     int _nfcn=nfcn();
@@ -312,18 +331,27 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
         // consitancy check: Is Eand p calculated in different ways (sum of true particles, or from the colour-neutral itself) the same ?
         double M =  sqrt(p4_fr_jets[0]*p4_fr_jets[0] - p4_fr_jets[1]*p4_fr_jets[1]- p4_fr_jets[2]*p4_fr_jets[2]- p4_fr_jets[3]*p4_fr_jets[3]) ;
         streamlog_out(DEBUG5) << " true p4 and mass of these:      " ; 
-              for ( int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG5) << " " <<  p4_fr_jets[jj] ; } ; 
+        for ( int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG5) << " " <<  p4_fr_jets[jj] ; } ; 
               streamlog_out(DEBUG5) << " " <<  M << endl;
-        if ( abs ( M- M_fcn(ifcn))/M > 0.001 ) {
             // Normally, the mass should be identical. However, due to the B-field, decyas of longlived charged 
             // particles have their momentum *direction* changed, so check energy as well
-          if ( abs ( p4_fr_jets[0]- E_fcn(ifcn))/E_fcn(ifcn) > 0.001 ) {
-            streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
-                << ", final cn " <<   ifcn << ": mass of cn: " << M_fcn(ifcn) << " mass of jets : " << M << endl;
-            streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
+	  float margin=0.007 ;
+            // If this is a tau cn, be more forgiving. The theory is that there is an issue with the
+            // the crossing-angle boost that becomes too big in aa/BB events which effects tau:s most
+          if ( abs(pdg_fcn_parent(ifcn)) == 15 ||  abs(pdg_fcn_parent(ifcn)) == 16 ) { margin =  0.02 ; }
+          if ( abs ( p4_fr_jets[0]- E_fcn(ifcn))/E_fcn(ifcn) > margin  && p4_fr_jets[0] > 0.5 ) {
+            if ( ( ! cluster_in_event ) || 
+               ( abs(( total_Ecn- total_Eisr ) - total_Etrue)/total_Etrue > 0.001 )) {
+              streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
                 << ", final cn " <<   ifcn << ": E of cn:    " << E_fcn(ifcn) << " E of jets :    " <<  p4_fr_jets[0] << endl;
+              streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
+                << ", final cn " <<   ifcn << ": mass of cn: " << M_fcn(ifcn) << " mass of jets : " << M << endl;
+              streamlog_out(WARNING)  << " event/run " << " cluster_in_event : " << cluster_in_event 
+                                     << " gluonsplit_in_event : " <<  gluonsplit_in_event  << endl;
+              streamlog_out(WARNING)  << " event/run " <<  " Totals : all non-isr initials = " 
+                                  << total_Ecn- total_Eisr << " all final non-ISR " << total_Etrue << endl;
+            }
           }
-        }
       }
       { 
         // now do it again, this time with the seen values.
@@ -339,6 +367,7 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
             sqrt(p4_fr_jets[0]*p4_fr_jets[0] - p4_fr_jets[1]*p4_fr_jets[1]- p4_fr_jets[2]*p4_fr_jets[2]- p4_fr_jets[3]*p4_fr_jets[3]) << endl;
       }
       {
+      if ( rmclcol != NULL ) {
         // and again, with the true values of seen particles.
         double p4_fr_jets[4] = { 0,0,0,0 };
         for ( unsigned kk=0 ; kk<fcn_jets.size() ; kk++ ) {
@@ -351,21 +380,20 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
             streamlog_out(DEBUG5) << " " << 
             sqrt(p4_fr_jets[0]*p4_fr_jets[0] - p4_fr_jets[1]*p4_fr_jets[1]- p4_fr_jets[2]*p4_fr_jets[2]- p4_fr_jets[3]*p4_fr_jets[3]) << endl;
       }
+      }
 
 
-      streamlog_out(DEBUG5) << " Number of elementons making this cn:" << elementons_final_cn(ifcn).size()  << endl;
-      streamlog_out(DEBUG5) << " Pdg of the parent " << pdg_fcn_parent(ifcn) << endl;
+      streamlog_out(DEBUG5) << " Number of elementons making this cn:" << elementons_final_cn(ifcn).size()  ;
+      streamlog_out(DEBUG5) << " Pdg of the parent " << pdg_fcn_parent(ifcn) ;
       streamlog_out(DEBUG5) << " Pdgs of all elementons making this cn: " ;
            for ( unsigned ipid=0 ; ipid <pdg_fcn_comps(ifcn).size() ; ipid++ ) { streamlog_out(DEBUG5)  <<pdg_fcn_comps(ifcn)[ipid] << " " ;}
            streamlog_out(DEBUG5)  << endl;
-
+ 
 
    } // end loop over final colour neutrals
 
 
-   double total_Ecn=0;
    streamlog_out(DEBUG5) << " Number of initial  colour-neutrals is " << nicn()<< endl;
-   int _nicn=nicn();
    for (int iicn=0 ; iicn< _nicn; iicn++ ) { // loop over initial colour neutrals
 
       // E/P/type of initial colour neutrals.
@@ -378,8 +406,6 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
             for (int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG4) << " " << p4_icn(iicn)[jj] ;}  ; 
             streamlog_out(DEBUG4)<< endl;
 
-      // Sum up the true energy of the hard system/      
-      total_Ecn+=E_icn(iicn);
 
       // get and list the jets, once again as an IntVec with inicies into the ets ReconstructedParticleVec.
       streamlog_out(DEBUG5) << " Number of jets from this cn:" << jets_of_initial_cn( iicn ).size() << endl;
@@ -402,19 +428,28 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
         }
       }
 
-      // Consiency check: is the sume-of-true and the E/P of the colour neutral the same ?
+      // Consitency check: is the sume-of-true and the E/P of the colour neutral the same ?
       double M =  sqrt(p4_fr_jets[0]*p4_fr_jets[0] - p4_fr_jets[1]*p4_fr_jets[1]- p4_fr_jets[2]*p4_fr_jets[2]- p4_fr_jets[3]*p4_fr_jets[3]) ;
       streamlog_out(DEBUG5) << " true p4 and mass of these: " ; 
-            for ( int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG5) << " " <<  p4_fr_jets[jj] ; } ; 
-            streamlog_out(DEBUG5) << " " << M << endl;
-      if ( abs ( M- M_icn(iicn))/M > 0.001 ) {
+      for ( int jj=0 ; jj<4 ; jj++ ) { streamlog_out(DEBUG5) << " " <<  p4_fr_jets[jj] ; } ; 
+          streamlog_out(DEBUG5) << " " << M << endl;
           // Normally, the mass should be identical. However, due to the B-field, decyas of longlived 
           // charged particles have their momentum *direction* changed, so check energy as well
-        if ( abs ( p4_fr_jets[0]- E_icn(iicn))/E_icn(iicn) > 0.001 ) {
-          streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
-                << " , initial cn " <<   iicn << " mass of cn: " << M_icn(iicn) << " mass of jets : " << M << endl;
+      float margin=0.007 ;
+           // If this is a tau cn, be more forgiving. The theory is that there is an issue with the
+           // the crossing-angle boost that becomes too big in aa/BB events which effects tau:s most
+      if ( abs( pdg_icn_comps(iicn)[0]) == 15 ||  abs(pdg_icn_comps(iicn)[0]) == 16 ) { margin =  0.02 ; }
+      if ( abs ( p4_fr_jets[0]- E_icn(iicn))/E_icn(iicn) > margin ) {
+        if ( ( ! cluster_in_event ) || 
+               ( abs(( total_Ecn- total_Eisr ) - total_Etrue)/total_Etrue > 0.001 )) {
           streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
                 << " , initial cn " <<   iicn << " E of cn:    " << E_icn(iicn) << " E of jets :    " <<  p4_fr_jets[0] << endl;
+          streamlog_out(WARNING) << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() 
+                << " , initial cn " <<   iicn << " mass of cn: " << M_icn(iicn) << " mass of jets : " << M << endl;
+          streamlog_out(WARNING)  << " event/run " << " cluster_in_event : " << cluster_in_event 
+                                     << " gluonsplit_in_event : " <<  gluonsplit_in_event  << endl;
+          streamlog_out(WARNING)  << " event/run " <<  " Totals : all non-isr initials = " 
+                                  << total_Ecn- total_Eisr << " all final non-ISR " << total_Etrue << endl;
         }
       }
       
@@ -436,12 +471,13 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
    }
 
    // consitency check: Did the sum of MCParticles really add up to the initial energy ?!
-   streamlog_out(DEBUG5) << " Total energies : " << " E(physics event)= " <<  total_Ecn 
-            << " E(sum true parts)= " <<total_Etrue << " E(isr)= " << total_Eisr << " E(overlay,seen)= " << total_Eowl << endl;
-   if ( abs(total_Ecn-total_Etrue)/total_Etrue > 0.0001 ) {
+   streamlog_out(DEBUG5) << " Total energies : " << " E(physics event)= " <<  total_Ecn
+			 << " E(physics event) - E(isr)= " <<  total_Ecn - total_Eisr 
+            << " E(sum non-isr true parts)= " <<total_Etrue << " E(isr)= " << total_Eisr << " E(overlay,seen)= " << total_Eowl << endl;
+   if ( abs(total_Ecn- total_Eisr - total_Etrue)/total_Etrue > 0.009 ) {
      streamlog_out(WARNING)  << " event/run " << evt->getEventNumber() << "/" << evt->getRunNumber() << 
                ": Mis-match in energy between initial elementons and sum of true particles: " << " E(physics event)= " 
-               <<  total_Ecn << " E(sum true parts)= " <<total_Etrue << endl;
+               <<  total_Ecn - total_Eisr << " E(sum true parts)= " <<total_Etrue << endl;
    }
 
 
@@ -451,7 +487,6 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
      pfocol = evt->getCollection( _recoParticleCollectionName );
    }
    catch( lcio::DataNotAvailableException e ){
-     streamlog_out(WARNING) <<  _recoParticleCollectionName   << " collection not available" << std::endl;
      pfocol = NULL;
    }
    
@@ -472,7 +507,7 @@ void Use_TrueJet::processEvent( LCEvent * evt ) {
              streamlog_out(DEBUG4)<<endl;
      }
    }
- 
+
    if ( tj ) {
      delall();  // clean up
    }
