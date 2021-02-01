@@ -20,6 +20,8 @@
 using namespace lcio ;
 using namespace marlin ;
 
+struct MCPseen : LCIntExtension<MCPseen> {} ;
+
 
   TrueJet_Parser::TrueJet_Parser() {
    
@@ -147,8 +149,16 @@ double TrueJet_Parser::Etrueseen(int ijet) {
   for ( unsigned kk=0 ; kk<mcpvec.size() ; kk++ ) {
     MCParticle* mcp  = dynamic_cast<MCParticle*>(mcpvec[kk]);
     LCObjectVec recovec = reltrue_tj->getRelatedFromObjects( mcp);
-   if ( recovec.size() > 0 ) { // if reconstructed
-      E+=mcp->getEnergy();
+    if ( recovec.size() > 0 ) { // if reconstructed
+      if ( mcp->getParents().size() == 0 || ! mcp->getParents()[0]->ext<MCPseen>() == 1 ) {  // if ancestor not already counted
+        E+=mcp->getEnergy();
+      }
+      mcp->ext<MCPseen>() = 1 ;
+    } else {
+      if (  mcp->getParents().size() > 0 && mcp->getParents()[0]->ext<MCPseen>() == 1 ) {   // if parent of particles seen, 
+                                                                                            // consider the particle itself as seen as seen
+        mcp->ext<MCPseen>() = 1 ; 
+      }
     }
   }
   return E;
@@ -182,9 +192,17 @@ const double* TrueJet_Parser::ptrueseen(int ijet) {
     MCParticle* mcp  = dynamic_cast<MCParticle*>(mcpvec[kk]);
     LCObjectVec recovec = reltrue_tj->getRelatedFromObjects( mcp);
     if ( recovec.size() > 0 ) { // if reconstructed
-      const double* mom = mcp->getMomentum();
-      for (int kk=0 ; kk<3 ; kk++ ) {
-        p3[kk]+=mom[kk];
+      if ( mcp->getParents().size() == 0 || ! mcp->getParents()[0]->ext<MCPseen>() == 1 ) {  // if ancestor not already counted
+        const double* mom = mcp->getMomentum();
+        for (int kk=0 ; kk<3 ; kk++ ) {
+          p3[kk]+=mom[kk];
+        }
+      }
+      mcp->ext<MCPseen>() = 1 ;
+    } else {
+      if (  mcp->getParents().size() > 0 && mcp->getParents()[0]->ext<MCPseen>() == 1 ) {   // if parent of particles seen, 
+                                                                                            // consider the particle itself as seen as seen
+        mcp->ext<MCPseen>() = 1 ; 
       }
     }
   }
@@ -466,6 +484,7 @@ void TrueJet_Parser::getall( LCEvent * event ) {
      // get TrueJets
     try{
       tjcol = evt->getCollection( _trueJetCollectionName);
+      if (  tjcol->getNumberOfElements() == 0 ) { return ; }
     }
     catch( lcio::DataNotAvailableException e )
     {
