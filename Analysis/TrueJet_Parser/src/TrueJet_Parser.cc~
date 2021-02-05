@@ -66,33 +66,34 @@ double TrueJet_Parser::Etrue(int ijet) {
   return E;
 }
 double TrueJet_Parser::Mtrue(int ijet) {
-  const double* p_4 = p4true(ijet);
+  const double* p4 = p4true(ijet);
   double psqr=0;
   for (int kk=1 ; kk<=3 ; kk++ ) {
-     psqr+=p_4[kk]*p_4[kk];
+     psqr+=p4[kk]*p4[kk];
   }
-  double M=sqrt(p_4[0]*p_4[0]-psqr);
+  double M=sqrt(p4[0]*p4[0]-psqr);
   return M ;
 }
 const double* TrueJet_Parser::ptrue(int ijet) {
   static FloatVec www ;
   LCObjectVec mcpvec = reltjmcp->getRelatedToObjects( jets->at(ijet) );
   www =  reltjmcp->getRelatedToWeights( jets->at(ijet));
+  //double* p=0; 
   p3[0]=0.; p3[1]=0.; p3[2]=0.; 
   for ( unsigned kk=0 ; kk<mcpvec.size() ; kk++ ) {
     MCParticle* mcp  = dynamic_cast<MCParticle*>(mcpvec[kk]);
     if ( _COUNT_FSR ) {
       if (  abs(www[kk]) == 1.0) {
         const double* mom = mcp->getMomentum();
-        for (int jj=0 ; jj<3 ; jj++ ) {
-          p3[jj]+=mom[jj];
+        for (int kk=0 ; kk<3 ; kk++ ) {
+          p3[kk]+=mom[kk];
         }
       }
     } else {
       if (  www[kk] == 1.0) {
         const double* mom = mcp->getMomentum();
-        for (int jj=0 ; jj<3 ; jj++ ) {
-          p3[jj]+=mom[jj];
+        for (int kk=0 ; kk<3 ; kk++ ) {
+          p3[kk]+=mom[kk];
         }
       }
     }
@@ -101,6 +102,7 @@ const double* TrueJet_Parser::ptrue(int ijet) {
 }
 
 const double* TrueJet_Parser::p4true(int ijet) {
+  // double* p4=0; 
   const double* mom = ptrue(ijet);
   for (int kk=1 ; kk<=3 ; kk++ ) {
      p4[kk]=mom[kk-1];
@@ -119,6 +121,7 @@ const double* TrueJet_Parser::pquark(int ijet) {
 }
 
 const double* TrueJet_Parser::p4quark(int ijet) {
+  //  double* p4; 
   const double* mom = pquark(ijet);
   for (int kk=1 ; kk<=3 ; kk++ ) {
      p4[kk]=mom[kk-1];
@@ -147,7 +150,7 @@ double TrueJet_Parser::Etrueseen(int ijet) {
     MCParticle* mcp  = dynamic_cast<MCParticle*>(mcpvec[kk]);
     LCObjectVec recovec = reltrue_tj->getRelatedFromObjects( mcp);
     if ( recovec.size() > 0 ) { // if reconstructed
-      if ( mcp->getParents().size() == 0 || ! ( mcp->getParents()[0]->ext<MCPseen>() == 1) ) {  // if ancestor not already counted
+      if ( mcp->getParents().size() == 0 || ! mcp->getParents()[0]->ext<MCPseen>() == 1 ) {  // if ancestor not already counted
         E+=mcp->getEnergy();
       }
       mcp->ext<MCPseen>() = 1 ;
@@ -161,12 +164,12 @@ double TrueJet_Parser::Etrueseen(int ijet) {
   return E;
 }
 double TrueJet_Parser::Mtrueseen(int ijet) {
-  const double* p_4 = p4trueseen(ijet);
+  const double* p4 = p4trueseen(ijet);
   double psqr=0;
   for (int kk=1 ; kk<=3 ; kk++ ) {
-     psqr+=p_4[kk]*p_4[kk];
+     psqr+=p4[kk]*p4[kk];
   }
-  double M=sqrt(p_4[0]*p_4[0]-psqr);
+  double M=sqrt(p4[0]*p4[0]-psqr);
   return M ;
 }
 const double* TrueJet_Parser::ptrueseen(int ijet) {
@@ -183,15 +186,16 @@ const double* TrueJet_Parser::ptrueseen(int ijet) {
     reltrue_tj = new LCRelationNavigator( rmclcol );
   }  
   LCObjectVec mcpvec = reltjmcp->getRelatedToObjects( jets->at(ijet) );
+  //double* p=0; 
   p3[0]=0 ; p3[1]=0 ; p3[2]=0 ; 
   for ( unsigned kk=0 ; kk<mcpvec.size() ; kk++ ) {
     MCParticle* mcp  = dynamic_cast<MCParticle*>(mcpvec[kk]);
     LCObjectVec recovec = reltrue_tj->getRelatedFromObjects( mcp);
     if ( recovec.size() > 0 ) { // if reconstructed
-      if ( mcp->getParents().size() == 0 || ! ( mcp->getParents()[0]->ext<MCPseen>() == 1 ) ) {  // if ancestor not already counted
+      if ( mcp->getParents().size() == 0 || ! mcp->getParents()[0]->ext<MCPseen>() == 1 ) {  // if ancestor not already counted
         const double* mom = mcp->getMomentum();
-        for (int jj=0 ; jj<3 ; jj++ ) {
-          p3[jj]+=mom[jj];
+        for (int kk=0 ; kk<3 ; kk++ ) {
+          p3[kk]+=mom[kk];
         }
       }
       mcp->ext<MCPseen>() = 1 ;
@@ -206,6 +210,7 @@ const double* TrueJet_Parser::ptrueseen(int ijet) {
 }
 
 const double* TrueJet_Parser::p4trueseen(int ijet) {
+  //double* p4=0; 
   const double* mom = ptrueseen(ijet);
   for (int kk=1 ; kk<=3 ; kk++ ) {
      p4[kk]=mom[kk-1];
@@ -380,6 +385,7 @@ const IntVec&  TrueJet_Parser::type_icn_comps(int iicn) {
 
 
 const double* TrueJet_Parser::p4_icn(int iicn) { 
+  //double* p4=0; 
   const double* mom = p_icn(iicn);
    for (int kk=1 ; kk<=3 ; kk++ ) {
      p4[kk]=mom[kk-1];
@@ -410,6 +416,7 @@ const IntVec&  TrueJet_Parser::type_fcn_comps(int ifcn) {
 
 
 const double* TrueJet_Parser::p4_fcn(int ifcn) { 
+  //double* p4=0; 
   const double* mom = p_fcn(ifcn);
    for (int kk=1 ; kk<=3 ; kk++ ) {
      p4[kk]=mom[kk-1];
