@@ -168,7 +168,7 @@ void TrueJet::processEvent( LCEvent * event ) {
     }
     catch( lcio::DataNotAvailableException e )
     {
-        streamlog_out(WARNING) << _recoMCTruthLink   << " collection not available" << std::endl;
+        streamlog_out(MESSAGE4) << _recoMCTruthLink   << " collection not available" << std::endl;
         rmclcol = NULL;
     }
 
@@ -1176,7 +1176,7 @@ void TrueJet::processEvent( LCEvent * event ) {
       streamlog_out(DEBUG6) << std::endl;
       
 
-    }  // endif( mcpcol != NULL &&  rmclcol != NULL)
+    }  // endif( mcpcol != NULL )
 
 
     //*****************************
