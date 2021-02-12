@@ -51,6 +51,9 @@ class TrueJet_Parser {
                                   // Get the index of jet in various arrays. That is, ijet in the
                                   // methods below.
 
+  const ReconstructedParticle* jet(int ijet) {return jets->at(ijet); }
+                                  // Get the jet object that is jet-number ijet.
+
   double Eseen(int ijet) { return jets->at(ijet)->getEnergy(); };
                                   // Seen energy of jet ijet
 
@@ -64,11 +67,10 @@ class TrueJet_Parser {
                                   // Seen 4-momentum of jet ijet (component 0 is E)
 
   const ReconstructedParticleVec& seen_partics(int ijet) { return jets->at(ijet)->getParticles(); };
-                                  // Get all PFOs in jet ijet. (These pointes are stored with the
-                                  // jet-object; for other relations, e.g. which true particles the
-                                  // jet is made of, or the reverse question ("Which jet does
-                                  // this seen (or true) particle belong to?"), see description of
-                                  // the navigators below.)
+                                  // Get all PFOs in jet ijet. 
+
+  const MCParticleVec& true_partics(int ijet) ;
+                                  // Get all MCPs in jet ijet.
 
   int type_jet(int ijet) { return jets->at(ijet)->getParticleIDs()[0]->getType() ; };
                                   // Get the type jet ijet: 1 = hadronic, from string
@@ -124,6 +126,19 @@ class TrueJet_Parser {
   const IntVec& initial_siblings( int ijet ); 
                                   // list of jets grouped with jet ijet seen from the  beginning of the parton-shower
                                   // (i.e. those that, together with jet ijet, belong to the same initial colour neutral)
+
+  int mcpjet( MCParticle* mcp);
+  int mcpicn( MCParticle* mcp);
+  int mcpfcn( MCParticle* mcp);
+                                  // Get jetnumber, initial or final colour neutral of true particle
+                                  // mcp
+
+  int recojet( ReconstructedParticle* reco);
+  int recoicn( ReconstructedParticle* reco);
+  int recofcn( ReconstructedParticle* reco);
+                                  // Get jetnumber, initial or final colour neutral of reconstructed 
+                                  // particle reco.
+
 
   int final_cn( int ijet ); 
                                   // the id of the final colour-neutral that jet ijet comes form
@@ -215,7 +230,11 @@ class TrueJet_Parser {
   const MCParticleVec& elementons_initial_cn(int ifcn) ;
                                  // list of MCParticles constituting the initial colour neutral
 
-                                 // All the following are set up by a call to getall ...
+                                 // All the following navigators are set up by a call to getall ...
+                                 // Note that most, if not all, information one can get using
+                                 // these navigators can already be obtained in a simpler way using
+                                 // the method above!
+
                                  // We list what they connect like so:
                                  // "a xxx -> yyys" means that navigator relzzz gives
                                  //

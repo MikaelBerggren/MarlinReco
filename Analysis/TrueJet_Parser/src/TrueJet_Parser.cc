@@ -109,6 +109,16 @@ const double* TrueJet_Parser::p4true(int ijet) {
   return p4 ;
 }
 
+const MCParticleVec& TrueJet_Parser::true_partics(int ijet) {
+  mcpartvec->clear();
+  MCParticleVec* jetmcps=mcpartvec;
+  LCObjectVec jetmcpsx = reltjmcp->getRelatedToObjects( jets->at(ijet) );
+  for ( unsigned iii=0 ; iii < jetmcpsx.size() ; iii++ ) {
+    jetmcps->push_back(dynamic_cast<MCParticle*>(jetmcpsx[iii]));
+  }
+  return *jetmcps;
+}  
+
 const double* TrueJet_Parser::pquark(int ijet) {
   if (final_elementon(ijet) != NULL ) {
     return final_elementon(ijet)->getMomentum() ;
@@ -304,7 +314,67 @@ const IntVec& TrueJet_Parser::initial_siblings( int ijet ){
   return *sibl;
   //
 
+}
+
+int TrueJet_Parser::mcpjet( MCParticle* mcp) {
+   LCObjectVec jetvec = reltjmcp->getRelatedFromObjects( mcp );
+   if (jetvec.size() > 0 ) {
+     return  jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0])) ;
+   } else {
+     return -1000 ;
+   }
 } 
+
+int TrueJet_Parser::mcpicn( MCParticle* mcp) {
+   LCObjectVec jetvec = reltjmcp->getRelatedFromObjects( mcp );
+   if (jetvec.size() > 0 ) {
+     return  final_cn(jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0]))) ;
+   } else {
+     return -1000 ;
+   }
+
+} 
+
+int TrueJet_Parser::mcpfcn( MCParticle* mcp) {
+   LCObjectVec jetvec = reltjmcp->getRelatedFromObjects( mcp );
+   if (jetvec.size() > 0 ) {
+     return initial_cn( jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0]))) ;
+   } else {
+     return -1000 ;
+   }
+
+} 
+
+int TrueJet_Parser::recojet( ReconstructedParticle* reco) {
+   LCObjectVec jetvec = reltjreco->getRelatedFromObjects( reco );
+   if (jetvec.size() > 0 ) {
+     return  jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0])) ;
+   } else {
+     return -1000 ;
+   }
+
+} 
+
+int TrueJet_Parser::recoicn( ReconstructedParticle* reco) {
+   LCObjectVec jetvec = reltjreco->getRelatedFromObjects( reco );
+   if (jetvec.size() > 0 ) {
+     return  final_cn(jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0]))) ;
+   } else {
+     return -1000 ;
+   }
+
+} 
+
+int TrueJet_Parser::recofcn( ReconstructedParticle* reco) {
+   LCObjectVec jetvec = reltjreco->getRelatedFromObjects( reco );
+   if (jetvec.size() > 0 ) {
+     return initial_cn( jetindex( dynamic_cast<ReconstructedParticle*>(jetvec[0]))) ;
+   } else {
+     return -1000 ;
+   }
+
+} 
+
 int TrueJet_Parser::final_cn( int ijet ) {
    LCObjectVec fcnvec = relfcn->getRelatedToObjects( jets->at(ijet) );
    int fcn ;
